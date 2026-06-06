@@ -248,8 +248,9 @@ export function AddSheet({
           )}
 
           {/* Cuenta */}
-          <div className="mb-4 mt-4">
+          <div className="mb-4 mt-5 border-t border-line pt-4">
             <AccountRow
+              label="Cuenta"
               accounts={accounts}
               selected={accountId}
               onSelect={setAccountId}
@@ -359,7 +360,7 @@ function AccountRow({
       {label && (
         <p className="mb-2 text-xs font-medium text-text-muted">{label}</p>
       )}
-      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+      <div className="flex flex-wrap gap-2">
         {accounts.map((a) => {
           const active = selected === a.id;
           return (
