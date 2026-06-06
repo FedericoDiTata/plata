@@ -46,8 +46,8 @@ export function DateRangeFilter({ from, to }: { from: string; to: string }) {
   ];
 
   return (
-    <div className="flex w-full flex-wrap items-center justify-between gap-1.5">
-      <div className="flex gap-1 rounded-xl border border-line bg-bg/40 p-1">
+    <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-1.5">
+      <div className="grid grid-cols-3 gap-1 rounded-xl border border-line bg-bg/40 p-1 sm:flex">
         {presets.map((p) => (
           <button
             key={p.label}
@@ -61,7 +61,7 @@ export function DateRangeFilter({ from, to }: { from: string; to: string }) {
           </button>
         ))}
       </div>
-      <div className="flex items-center gap-1 rounded-xl border border-line bg-bg/40 px-2 py-1 text-xs text-text-muted">
+      <div className="flex items-center justify-center gap-1 rounded-xl border border-line bg-bg/40 px-2 py-1.5 text-xs text-text-muted sm:py-1">
         <input
           type="date"
           value={isHistoric ? "" : from}

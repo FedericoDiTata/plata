@@ -111,7 +111,7 @@ export function BreakdownCard({
 
   if (slices.length === 0) {
     return (
-      <section className="card flex flex-col p-6">
+      <section className="card flex flex-col p-5 lg:p-6">
         <h2 className="mb-4 text-lg font-semibold">{title}</h2>
         <p className="flex flex-1 items-center justify-center py-10 text-center text-sm text-text-faint">
           {emptyText}
@@ -128,7 +128,7 @@ export function BreakdownCard({
   let offset = 0;
 
   return (
-    <section className="card flex flex-col p-6">
+    <section className="card flex flex-col p-5 lg:p-6">
       <h2 className="mb-5 text-lg font-semibold">{title}</h2>
 
       <div className="flex flex-col items-center gap-6 sm:flex-row sm:gap-8">

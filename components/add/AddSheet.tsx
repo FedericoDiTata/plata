@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format, subDays } from "date-fns";
-import { ArrowLeftRight, ArrowRight, Calendar } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowRight, Calendar, X } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { Keypad } from "./Keypad";
 import { Icon } from "@/components/ui/Icon";
@@ -22,6 +23,12 @@ import type {
 } from "@/lib/types";
 
 const LAST_ACCOUNT_KEY = "plata:lastAccount";
+
+const TYPES = [
+  ["expense", "Gasto"],
+  ["income", "Ingreso"],
+  ["transfer", "Transf."],
+] as const;
 
 export function AddSheet({
   open,
@@ -53,6 +60,17 @@ export function AddSheet({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // En celular el panel ocupa toda la pantalla: bloqueo el scroll del fondo
+  // mientras está abierto (en compu de eso se encarga el componente Sheet).
+  useEffect(() => {
+    if (!open || isDesktop) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open, isDesktop]);
+
   // Al abrir: reseteo y cuenta por defecto (la última usada o la primera).
   useEffect(() => {
     if (!open) return;
@@ -81,6 +99,8 @@ export function AddSheet({
 
   const accent =
     type === "income" ? "income" : type === "transfer" ? "info" : "text";
+  const saveColor =
+    type === "income" ? "income" : type === "transfer" ? "info" : "negative";
 
   function pressKey(key: string) {
     setAmountStr((v) => applyKey(v, key, decimals));
@@ -94,6 +114,11 @@ export function AddSheet({
     const [intp, dec] = v.split(",");
     if (dec !== undefined) v = intp + "," + dec.slice(0, decimals);
     setAmountStr(v === "" ? "0" : v);
+  }
+
+  function changeType(t: TxType) {
+    setType(t);
+    setCategoryId(null);
   }
 
   async function handleSave() {
@@ -127,29 +152,220 @@ export function AddSheet({
     router.refresh();
   }
 
+  /* ============================================================
+     CELULAR — pantalla de carga a pantalla completa.
+     Estructura fija: monto arriba + teclado/Guardar abajo, y el
+     medio (categorías/fuente) scrollea solo si hace falta.
+     ============================================================ */
+  if (!isDesktop) {
+    return (
+      <AnimatePresence>
+        {open && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onClose}
+              className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 32, stiffness: 340 }}
+              className="fixed inset-x-0 bottom-0 z-50 mx-auto flex h-[96dvh] w-full max-w-[520px] flex-col overflow-hidden rounded-t-[28px] border border-line bg-surface"
+            >
+              {/* Encabezado: tipo + cerrar */}
+              <div className="shrink-0 px-4 pt-3">
+                <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-line-strong" />
+                <div className="flex items-center gap-2">
+                  <div className="grid flex-1 grid-cols-3 gap-1 rounded-2xl bg-surface-2 p-1">
+                    {TYPES.map(([t, label]) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => changeType(t)}
+                        className={cn(
+                          "h-9 rounded-xl text-sm font-medium transition",
+                          type === t
+                            ? "bg-surface-3 text-text shadow-sm"
+                            : "text-text-muted",
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    aria-label="Cerrar"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-text-muted transition active:scale-90"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Monto (fijo) */}
+              <div className="shrink-0 px-4 pb-2 pt-4 text-center">
+                <div
+                  className="flex items-baseline justify-center gap-1.5 tnum"
+                  style={{
+                    color: accent === "text" ? undefined : colorVar(accent),
+                  }}
+                >
+                  <span className="text-2xl font-medium text-text-faint">
+                    {currency?.symbol ?? "$"}
+                  </span>
+                  <span className="text-[clamp(2rem,11vw,2.75rem)] font-semibold leading-none tracking-tight">
+                    {formatAmountDisplay(amountStr)}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-text-faint">
+                  {account?.currency_code} · {account?.name}
+                </p>
+              </div>
+
+              {/* Medio (scrollea solo si hace falta) */}
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-1">
+                {type === "transfer" ? (
+                  <div className="space-y-2">
+                    <MobileAccountGrid
+                      label="Desde"
+                      accounts={accounts}
+                      selected={accountId}
+                      onSelect={setAccountId}
+                    />
+                    <div className="flex justify-center py-0.5 text-text-faint">
+                      <ArrowRight className="h-4 w-4 rotate-90" />
+                    </div>
+                    <MobileAccountGrid
+                      label="Hacia"
+                      accounts={accounts}
+                      selected={toAccountId}
+                      onSelect={setToAccountId}
+                    />
+                    <p className="pt-1 text-center text-xs text-text-faint">
+                      Movés plata entre tus cuentas. No cuenta como gasto ni
+                      ingreso.
+                    </p>
+                  </div>
+                ) : type === "expense" ? (
+                  <IconGrid
+                    items={expenseCategories.map((c) => ({
+                      id: c.id,
+                      name: c.name,
+                      color: c.color,
+                      icon: c.icon,
+                    }))}
+                    selected={categoryId}
+                    onSelect={setCategoryId}
+                  />
+                ) : (
+                  <IconGrid
+                    items={incomeSources.map((s) => ({
+                      id: s.id,
+                      name: s.name,
+                      color: s.color,
+                      icon: "banknote",
+                    }))}
+                    selected={incomeSourceId}
+                    onSelect={setIncomeSourceId}
+                  />
+                )}
+
+                <input
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Nota (opcional)"
+                  maxLength={200}
+                  className="mt-3 h-11 w-full rounded-xl border border-line bg-surface-2 px-3 text-sm outline-none placeholder:text-text-faint focus:border-accent/50"
+                />
+              </div>
+
+              {/* Pie fijo: cuenta + fecha + teclado + Guardar */}
+              <div
+                className="shrink-0 border-t border-line bg-surface px-4 pt-3"
+                style={{ paddingBottom: "max(env(safe-area-inset-bottom),12px)" }}
+              >
+                <div className="mb-3 flex items-center gap-2">
+                  {type !== "transfer" && (
+                    <div className="flex min-w-0 flex-1 gap-1.5 overflow-hidden">
+                      {accounts.map((a) => {
+                        const active = accountId === a.id;
+                        return (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onClick={() => setAccountId(a.id)}
+                            className={cn(
+                              "flex min-w-0 items-center gap-1.5 rounded-xl border px-2.5 py-2 text-xs transition active:scale-95",
+                              active
+                                ? "border-transparent text-text"
+                                : "border-line text-text-muted",
+                            )}
+                            style={
+                              active
+                                ? {
+                                    background: colorSoft(a.color, 20),
+                                    borderColor: colorVar(a.color),
+                                  }
+                                : undefined
+                            }
+                          >
+                            <Icon name={a.icon} className="h-4 w-4 shrink-0" />
+                            <span className="truncate">{a.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className={cn(type === "transfer" && "flex-1")} />
+                  <DatePicker date={date} onChange={setDate} />
+                </div>
+
+                {error && (
+                  <p className="mb-3 rounded-lg bg-negative-soft px-3 py-2 text-center text-sm text-negative">
+                    {error}
+                  </p>
+                )}
+
+                <Keypad onKey={pressKey} />
+
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="mt-3 flex h-14 w-full items-center justify-center rounded-2xl text-lg font-semibold text-bg transition active:scale-[0.98] disabled:opacity-60"
+                  style={{ background: colorVar(saveColor) }}
+                >
+                  {saving ? "Guardando…" : "Guardar"}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    );
+  }
+
+  /* ============================================================
+     COMPU — ventana centrada con formulario normal (sin teclado).
+     ============================================================ */
   return (
     <Sheet open={open} onClose={onClose}>
       {/* Selector de tipo */}
       <div className="mb-5 grid grid-cols-3 gap-1 rounded-xl bg-surface-2 p-1">
-        {(
-          [
-            ["expense", "Gasto"],
-            ["income", "Ingreso"],
-            ["transfer", "Transf."],
-          ] as const
-        ).map(([t, label]) => (
+        {TYPES.map(([t, label]) => (
           <button
             key={t}
             type="button"
-            onClick={() => {
-              setType(t);
-              setCategoryId(null);
-            }}
+            onClick={() => changeType(t)}
             className={cn(
               "h-9 rounded-lg text-sm font-medium transition",
-              type === t
-                ? "bg-surface-3 text-text shadow-sm"
-                : "text-text-muted",
+              type === t ? "bg-surface-3 text-text shadow-sm" : "text-text-muted",
             )}
           >
             {label}
@@ -158,42 +374,25 @@ export function AddSheet({
       </div>
 
       {/* Monto */}
-      {isDesktop ? (
-        <div className="mb-5">
-          <div className="flex items-center gap-2 rounded-2xl border border-line bg-surface-2 px-4 py-3 focus-within:border-accent/60">
-            <span className="text-2xl text-text-faint">
-              {currency?.symbol ?? "$"}
-            </span>
-            <input
-              autoFocus
-              value={amountStr === "0" ? "" : amountStr}
-              onChange={onAmountInput}
-              inputMode="decimal"
-              placeholder="0"
-              className="w-full bg-transparent text-4xl font-semibold tnum outline-none placeholder:text-text-faint"
-              style={{ color: accent === "text" ? undefined : colorVar(accent) }}
-            />
-            <span className="shrink-0 text-xs text-text-faint">
-              {account?.currency_code}
-            </span>
-          </div>
-        </div>
-      ) : (
-        <div className="mb-5 text-center">
-          <div
-            className="text-5xl font-semibold tracking-tight tnum"
+      <div className="mb-5">
+        <div className="flex items-center gap-2 rounded-2xl border border-line bg-surface-2 px-4 py-3 focus-within:border-accent/60">
+          <span className="text-2xl text-text-faint">
+            {currency?.symbol ?? "$"}
+          </span>
+          <input
+            autoFocus
+            value={amountStr === "0" ? "" : amountStr}
+            onChange={onAmountInput}
+            inputMode="decimal"
+            placeholder="0"
+            className="w-full bg-transparent text-4xl font-semibold tnum outline-none placeholder:text-text-faint"
             style={{ color: accent === "text" ? undefined : colorVar(accent) }}
-          >
-            <span className="mr-1 text-2xl text-text-faint">
-              {currency?.symbol ?? "$"}
-            </span>
-            {formatAmountDisplay(amountStr)}
-          </div>
-          <p className="mt-1 text-xs text-text-faint">
-            {account?.currency_code} · {account?.name}
-          </p>
+          />
+          <span className="shrink-0 text-xs text-text-faint">
+            {account?.currency_code}
+          </span>
         </div>
-      )}
+      </div>
 
       {/* Transferencia: origen → destino */}
       {type === "transfer" ? (
@@ -277,16 +476,13 @@ export function AddSheet({
         </p>
       )}
 
-      {/* Teclado (solo celular) */}
-      {!isDesktop && <Keypad onKey={pressKey} />}
-
       {/* Guardar */}
       <button
         type="button"
         onClick={handleSave}
         disabled={saving}
-        className="mt-4 flex h-14 w-full items-center justify-center rounded-2xl text-lg font-semibold text-bg transition active:scale-[0.98] disabled:opacity-60"
-        style={{ background: colorVar(type === "income" ? "income" : type === "transfer" ? "info" : "negative") }}
+        className="mt-1 flex h-14 w-full items-center justify-center rounded-2xl text-lg font-semibold text-bg transition active:scale-[0.98] disabled:opacity-60"
+        style={{ background: colorVar(saveColor) }}
       >
         {saving ? "Guardando…" : "Guardar"}
       </button>
@@ -296,6 +492,112 @@ export function AddSheet({
 
 /* ---------- Subcomponentes ---------- */
 
+/** Grilla de íconos compacta (celular): categorías de gasto / fuentes. */
+function IconGrid({
+  items,
+  selected,
+  onSelect,
+}: {
+  items: { id: string; name: string; color: string; icon: string }[];
+  selected: string | null;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="grid grid-cols-4 gap-1.5">
+      {items.map((it) => {
+        const active = selected === it.id;
+        return (
+          <button
+            key={it.id}
+            type="button"
+            onClick={() => onSelect(it.id)}
+            className={cn(
+              "flex flex-col items-center gap-1.5 rounded-2xl border px-1 py-2.5 transition active:scale-95",
+              active ? "border-transparent" : "border-transparent",
+            )}
+            style={
+              active ? { background: colorSoft(it.color, 18) } : undefined
+            }
+          >
+            <span
+              className="flex h-11 w-11 items-center justify-center rounded-full transition"
+              style={{
+                background: colorSoft(it.color, active ? 32 : 14),
+                outline: active ? `2px solid ${colorVar(it.color)}` : "none",
+                outlineOffset: "1px",
+              }}
+            >
+              <Icon name={it.icon} className="h-5 w-5" strokeWidth={2.2} />
+            </span>
+            <span
+              className={cn(
+                "w-full truncate text-center text-[11px] leading-tight",
+                active ? "font-medium text-text" : "text-text-muted",
+              )}
+            >
+              {it.name}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Cuentas en grilla (celular): para origen/destino de transferencia. */
+function MobileAccountGrid({
+  label,
+  accounts,
+  selected,
+  onSelect,
+}: {
+  label?: string;
+  accounts: AccountWithBalance[];
+  selected: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div>
+      {label && (
+        <p className="mb-1.5 text-xs font-medium text-text-muted">{label}</p>
+      )}
+      <div className="grid grid-cols-2 gap-1.5">
+        {accounts.map((a) => {
+          const active = selected === a.id;
+          return (
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => onSelect(a.id)}
+              className={cn(
+                "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition active:scale-95",
+                active
+                  ? "border-transparent text-text"
+                  : "border-line text-text-muted",
+              )}
+              style={
+                active
+                  ? {
+                      background: colorSoft(a.color, 20),
+                      borderColor: colorVar(a.color),
+                    }
+                  : undefined
+              }
+            >
+              <Icon name={a.icon} className="h-4 w-4 shrink-0" />
+              <span className="min-w-0 flex-1 truncate text-left">{a.name}</span>
+              <span className="shrink-0 text-[10px] text-text-faint">
+                {a.currency_code}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Chips horizontales (compu). */
 function ChipGrid({
   items,
   selected,
@@ -330,11 +632,7 @@ function ChipGrid({
               className="flex h-5 w-5 items-center justify-center rounded-full"
               style={{ background: colorSoft(it.color, 22) }}
             >
-              <Icon
-                name={it.icon}
-                className="h-3.5 w-3.5"
-                strokeWidth={2.4}
-              />
+              <Icon name={it.icon} className="h-3.5 w-3.5" strokeWidth={2.4} />
             </span>
             {it.name}
           </button>
@@ -404,7 +702,7 @@ function DatePicker({
   const isYesterday = date === yesterday;
 
   return (
-    <div className="flex items-center gap-1 rounded-lg border border-line bg-surface-2 p-1">
+    <div className="flex shrink-0 items-center gap-1 rounded-lg border border-line bg-surface-2 p-1">
       <button
         type="button"
         onClick={() => onChange(today)}

@@ -51,7 +51,7 @@ export function DashboardGoals({
   }
 
   return (
-    <section className="card flex flex-col p-6">
+    <section className="card flex flex-col p-5 lg:p-6">
       <div className="mb-5 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-lg font-semibold">
           <Target className="h-5 w-5 text-accent" /> Ahorros

@@ -19,6 +19,7 @@ import { colorSoft, colorVar } from "@/lib/colors";
 import { Icon } from "@/components/ui/Icon";
 import { BreakdownCard } from "@/components/dashboard/BreakdownCard";
 import { DateRangeFilter } from "@/components/dashboard/DateRangeFilter";
+import { MobileHome } from "@/components/dashboard/MobileHome";
 import { DashboardGoals } from "@/components/dashboard/DashboardGoals";
 import { DashboardDebts } from "@/components/dashboard/DashboardDebts";
 import { DashboardRecurring } from "@/components/dashboard/DashboardRecurring";
@@ -86,9 +87,24 @@ export default async function DashboardPage({
   const hasData = accounts.length > 0;
 
   return (
-    <div className="space-y-5">
-      {/* ===== Hero ===== */}
-      <section className="card relative overflow-hidden p-6 lg:p-8">
+    <div className="space-y-4 lg:space-y-5">
+      {/* ===== Hero (CELULAR) ===== */}
+      <div className="lg:hidden">
+        <MobileHome
+          byCurrency={byCurrency}
+          accounts={accounts}
+          curByCode={curByCode}
+          baseCur={baseCur}
+          income={income}
+          expense={expense}
+          rangeLabel={rangeLabel}
+          from={from}
+          to={to}
+        />
+      </div>
+
+      {/* ===== Hero (COMPU) ===== */}
+      <section className="card relative hidden overflow-hidden p-6 lg:block lg:p-8">
         <div aria-hidden className="grad-hero pointer-events-none absolute inset-0" />
         <div className="relative flex flex-col gap-8 lg:flex-row lg:items-stretch lg:gap-8">
           {/* Izquierda: patrimonio (título centrado, números a la izquierda) */}
