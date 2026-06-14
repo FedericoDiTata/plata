@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Sheet } from "@/components/ui/Sheet";
-import { setDebtSettled } from "@/app/actions/debts";
-import { createTransaction } from "@/app/actions/transactions";
-import { formatMoney, todayISO } from "@/lib/format";
+import { settleDebt } from "@/app/actions/debts";
+import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { AccountWithBalance, Currency, Debt } from "@/lib/types";
 
@@ -47,17 +46,10 @@ export function SettleDebtSheet({
   async function settle() {
     if (!debt) return;
     setBusy(true);
-    if (register && accountId) {
-      await createTransaction({
-        type: isIncoming ? "income" : "expense",
-        amount: debt.amount,
-        currency_code: debt.currency_code,
-        account_id: accountId,
-        note: `${isIncoming ? "Cobro" : "Pago"} de deuda · ${debt.counterparty}`,
-        occurred_on: todayISO(),
-      });
-    }
-    await setDebtSettled(debt.id, true);
+    await settleDebt(debt.id, {
+      register,
+      accountId: register ? accountId : null,
+    });
     setBusy(false);
     onDone();
   }

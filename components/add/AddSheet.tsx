@@ -24,6 +24,9 @@ import type {
 
 const LAST_ACCOUNT_KEY = "plata:lastAccount";
 
+// Id especial para la fuente "Otro" (un ingreso suelto, sin fuente fija).
+const CUSTOM_SOURCE = "__custom__";
+
 const TYPES = [
   ["expense", "Gasto"],
   ["income", "Ingreso"],
@@ -55,6 +58,7 @@ export function AddSheet({
   const [toAccountId, setToAccountId] = useState<string>("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [incomeSourceId, setIncomeSourceId] = useState<string | null>(null);
+  const [customSource, setCustomSource] = useState("");
   const [note, setNote] = useState("");
   const [date, setDate] = useState(todayISO());
   const [saving, setSaving] = useState(false);
@@ -79,7 +83,8 @@ export function AddSheet({
     setDate(todayISO());
     setError(null);
     setCategoryId(null);
-    setIncomeSourceId(incomeSources[0]?.id ?? null);
+    setIncomeSourceId(incomeSources[0]?.id ?? CUSTOM_SOURCE);
+    setCustomSource("");
     const last =
       typeof window !== "undefined"
         ? localStorage.getItem(LAST_ACCOUNT_KEY)
@@ -96,6 +101,21 @@ export function AddSheet({
   );
   const decimals = currency?.decimals ?? 2;
   const amount = parseAmount(amountStr);
+
+  // Fuentes de ingreso + opción "Otro" (para ingresos sueltos/random).
+  const incomeItems = useMemo(
+    () => [
+      ...incomeSources.map((s) => ({
+        id: s.id,
+        name: s.name,
+        color: s.color,
+        icon: "banknote",
+      })),
+      { id: CUSTOM_SOURCE, name: "Otro", color: "cat-12", icon: "tag" },
+    ],
+    [incomeSources],
+  );
+  const isCustomSource = type === "income" && incomeSourceId === CUSTOM_SOURCE;
 
   const accent =
     type === "income" ? "income" : type === "transfer" ? "info" : "text";
@@ -128,8 +148,17 @@ export function AddSheet({
     if (type === "expense" && !categoryId) return setError("Elegí una categoría.");
     if (type === "income" && !incomeSourceId)
       return setError("Elegí la fuente del ingreso.");
+    const isCustomIncome = type === "income" && incomeSourceId === CUSTOM_SOURCE;
+    if (isCustomIncome && !customSource.trim())
+      return setError("Escribí de dónde vino el ingreso.");
     if (type === "transfer" && accountId === toAccountId)
       return setError("Las cuentas de origen y destino deben ser distintas.");
+
+    // Para un ingreso suelto ("Otro") guardamos el texto libre como nota: es
+    // lo que después aparece como su etiqueta en "Cómo entra la plata".
+    const finalNote = isCustomIncome
+      ? [customSource.trim(), note.trim()].filter(Boolean).join(" · ")
+      : note.trim() || null;
 
     setSaving(true);
     const res = await createTransaction({
@@ -139,8 +168,11 @@ export function AddSheet({
       account_id: accountId,
       to_account_id: type === "transfer" ? toAccountId : null,
       category_id: type !== "transfer" ? categoryId : null,
-      income_source_id: type === "income" ? incomeSourceId : null,
-      note: note.trim() || null,
+      income_source_id:
+        type === "income" && incomeSourceId !== CUSTOM_SOURCE
+          ? incomeSourceId
+          : null,
+      note: finalNote,
       occurred_on: date,
     });
     setSaving(false);
@@ -264,16 +296,23 @@ export function AddSheet({
                     onSelect={setCategoryId}
                   />
                 ) : (
-                  <IconGrid
-                    items={incomeSources.map((s) => ({
-                      id: s.id,
-                      name: s.name,
-                      color: s.color,
-                      icon: "banknote",
-                    }))}
-                    selected={incomeSourceId}
-                    onSelect={setIncomeSourceId}
-                  />
+                  <>
+                    <IconGrid
+                      items={incomeItems}
+                      selected={incomeSourceId}
+                      onSelect={setIncomeSourceId}
+                    />
+                    {isCustomSource && (
+                      <input
+                        value={customSource}
+                        onChange={(e) => setCustomSource(e.target.value)}
+                        placeholder="¿De dónde vino? (ej: cena con amigos)"
+                        maxLength={80}
+                        autoFocus
+                        className="mt-3 h-11 w-full rounded-xl border border-line bg-surface-2 px-3 text-sm outline-none placeholder:text-text-faint focus:border-accent/50"
+                      />
+                    )}
+                  </>
                 )}
 
                 <input
@@ -434,15 +473,19 @@ export function AddSheet({
             <>
               <p className="mb-2 text-xs font-medium text-text-muted">Fuente</p>
               <ChipGrid
-                items={incomeSources.map((s) => ({
-                  id: s.id,
-                  name: s.name,
-                  color: s.color,
-                  icon: "banknote",
-                }))}
+                items={incomeItems}
                 selected={incomeSourceId}
                 onSelect={setIncomeSourceId}
               />
+              {isCustomSource && (
+                <input
+                  value={customSource}
+                  onChange={(e) => setCustomSource(e.target.value)}
+                  placeholder="¿De dónde vino? (ej: cena con amigos)"
+                  maxLength={80}
+                  className="mt-3 h-10 w-full rounded-lg border border-line bg-surface-2 px-3 text-sm outline-none placeholder:text-text-faint focus:border-accent/50"
+                />
+              )}
             </>
           )}
 

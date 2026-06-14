@@ -37,7 +37,6 @@ export default async function AjustesPage() {
       <Section title="Categorías y fuentes">
         <TaxonomyManager
           expenseCategories={categories.filter((c) => c.kind === "expense")}
-          incomeCategories={categories.filter((c) => c.kind === "income")}
           incomeSources={incomeSources}
         />
       </Section>

@@ -77,10 +77,21 @@ export function BreakdownCard({
         icon = cat?.icon ?? "ellipsis";
       } else {
         const src = t.income_source_id ? srcById.get(t.income_source_id) : undefined;
-        id = t.income_source_id ?? "none";
-        label = src?.name ?? "Sin fuente";
-        color = src?.color ?? "cat-12";
         icon = "banknote";
+        if (src) {
+          id = t.income_source_id!;
+          label = src.name;
+          color = src.color;
+        } else if (t.note) {
+          // Ingreso suelto ("Otro"): agrupamos por su texto libre.
+          id = `note:${t.note}`;
+          label = t.note;
+          color = "cat-12";
+        } else {
+          id = "none";
+          label = "Sin fuente";
+          color = "cat-12";
+        }
       }
       const cur = map.get(id) ?? { key: id, label, color, icon, total: 0, txs: [] };
       cur.total += txInBase(t, currencies);

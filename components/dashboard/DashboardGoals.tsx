@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Target, Check, Plus } from "lucide-react";
 import { toggleGoalDone } from "@/app/actions/goals";
+import { CreateGoalSheet } from "@/components/goals/CreateGoalSheet";
 import { GoalContributeSheet } from "@/components/goals/GoalContributeSheet";
 import { formatMoney, shortDate } from "@/lib/format";
 import { colorHex, colorSoft, colorVar } from "@/lib/colors";
@@ -20,13 +21,16 @@ export function DashboardGoals({
   contributions,
   accounts,
   currencies,
+  base,
 }: {
   goals: Goal[];
   contributions: GoalContribution[];
   accounts: AccountWithBalance[];
   currencies: Currency[];
+  base: string;
 }) {
   const router = useRouter();
+  const [createOpen, setCreateOpen] = useState(false);
   const curOf = (code: string) =>
     currencies.find((c) => c.code === code) ?? { symbol: code, decimals: 2 };
 
@@ -62,12 +66,12 @@ export function DashboardGoals({
       </div>
 
       {active.length === 0 && done.length === 0 ? (
-        <Link
-          href="/metas"
+        <button
+          onClick={() => setCreateOpen(true)}
           className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-dashed border-line-strong py-8 text-sm text-text-muted transition hover:text-text"
         >
           <Plus className="h-4 w-4" /> Creá tu primera meta
-        </Link>
+        </button>
       ) : (
         <div className="flex flex-1 flex-col gap-5">
           {active.map((g) => {
@@ -142,6 +146,12 @@ export function DashboardGoals({
               </div>
             </div>
           )}
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="mt-1 flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-line-strong py-2.5 text-sm font-medium text-text-muted transition hover:text-text"
+          >
+            <Plus className="h-4 w-4" /> Nueva meta
+          </button>
         </div>
       )}
 
@@ -153,6 +163,17 @@ export function DashboardGoals({
         onClose={() => setContribGoal(null)}
         onDone={() => {
           setContribGoal(null);
+          router.refresh();
+        }}
+      />
+
+      <CreateGoalSheet
+        open={createOpen}
+        currencies={currencies}
+        baseCurrency={base}
+        onClose={() => setCreateOpen(false)}
+        onSaved={() => {
+          setCreateOpen(false);
           router.refresh();
         }}
       />

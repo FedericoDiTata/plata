@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { HandCoins, Check, Plus } from "lucide-react";
 import { SettleDebtSheet } from "@/components/debts/SettleDebtSheet";
+import { CreateDebtSheet } from "@/components/debts/CreateDebtSheet";
 import { currencyRate } from "@/lib/calc";
 import { formatMoney, shortDate } from "@/lib/format";
 import { colorVar } from "@/lib/colors";
@@ -29,6 +30,7 @@ export function DashboardDebts({
   const curOf = (code: string) =>
     currencies.find((c) => c.code === code) ?? { symbol: code, decimals: 2 };
   const [settleDebt, setSettleDebt] = useState<Debt | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const pending = debts.filter((d) => !d.is_settled);
   const theyOwe = pending
@@ -65,14 +67,15 @@ export function DashboardDebts({
       </div>
 
       {pending.length === 0 ? (
-        <Link
-          href="/deudas"
+        <button
+          onClick={() => setCreateOpen(true)}
           className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-dashed border-line-strong py-6 text-sm text-text-muted transition hover:text-text"
         >
           <Plus className="h-4 w-4" /> Registrar una deuda
-        </Link>
+        </button>
       ) : (
-        <div className="divide-y divide-line">
+        <>
+          <div className="divide-y divide-line">
           {pending.slice(0, 6).map((d) => (
             <div key={d.id} className="flex items-center gap-3 py-2.5">
               <span className="min-w-0 flex-1">
@@ -102,7 +105,14 @@ export function DashboardDebts({
               </button>
             </div>
           ))}
-        </div>
+          </div>
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-line-strong py-2.5 text-sm font-medium text-text-muted transition hover:text-text"
+          >
+            <Plus className="h-4 w-4" /> Nueva deuda
+          </button>
+        </>
       )}
 
       <SettleDebtSheet
@@ -112,6 +122,17 @@ export function DashboardDebts({
         onClose={() => setSettleDebt(null)}
         onDone={() => {
           setSettleDebt(null);
+          router.refresh();
+        }}
+      />
+
+      <CreateDebtSheet
+        open={createOpen}
+        currencies={currencies}
+        baseCurrency={base}
+        onClose={() => setCreateOpen(false)}
+        onSaved={() => {
+          setCreateOpen(false);
           router.refresh();
         }}
       />

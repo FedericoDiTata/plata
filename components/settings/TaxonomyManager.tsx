@@ -15,61 +15,56 @@ import {
 } from "@/app/actions/settings";
 import type { Category, IncomeSource } from "@/lib/types";
 
-type AddTarget = "expense" | "income" | "source" | null;
+type AddTarget = "expense" | "source" | null;
 
 export function TaxonomyManager({
   expenseCategories,
-  incomeCategories,
   incomeSources,
 }: {
   expenseCategories: Category[];
-  incomeCategories: Category[];
   incomeSources: IncomeSource[];
 }) {
   const router = useRouter();
   const [adding, setAdding] = useState<AddTarget>(null);
+  // Ids que el usuario acaba de borrar: los ocultamos al instante (UI
+  // optimista) mientras el servidor procesa, sin esperar la respuesta.
+  const [removed, setRemoved] = useState<Set<string>>(new Set());
+  const hide = (id: string) => setRemoved((s) => new Set(s).add(id));
 
-  async function removeCat(id: string) {
-    await archiveCategory(id);
-    router.refresh();
+  function removeCat(id: string) {
+    hide(id);
+    archiveCategory(id).then(() => router.refresh());
   }
-  async function removeSrc(id: string) {
-    await archiveIncomeSource(id);
-    router.refresh();
+  function removeSrc(id: string) {
+    hide(id);
+    archiveIncomeSource(id).then(() => router.refresh());
   }
 
   return (
     <div className="space-y-5">
       <Group
         title="Categorías de gasto"
-        items={expenseCategories.map((c) => ({
-          id: c.id,
-          name: c.name,
-          color: c.color,
-          icon: c.icon,
-        }))}
+        items={expenseCategories
+          .filter((c) => !removed.has(c.id))
+          .map((c) => ({
+            id: c.id,
+            name: c.name,
+            color: c.color,
+            icon: c.icon,
+          }))}
         onAdd={() => setAdding("expense")}
         onRemove={removeCat}
       />
       <Group
-        title="Categorías de ingreso"
-        items={incomeCategories.map((c) => ({
-          id: c.id,
-          name: c.name,
-          color: c.color,
-          icon: c.icon,
-        }))}
-        onAdd={() => setAdding("income")}
-        onRemove={removeCat}
-      />
-      <Group
         title="Fuentes de ingreso"
-        items={incomeSources.map((s) => ({
-          id: s.id,
-          name: s.name,
-          color: s.color,
-          icon: "banknote",
-        }))}
+        items={incomeSources
+          .filter((s) => !removed.has(s.id))
+          .map((s) => ({
+            id: s.id,
+            name: s.name,
+            color: s.color,
+            icon: "banknote",
+          }))}
         onAdd={() => setAdding("source")}
         onRemove={removeSrc}
       />
@@ -152,7 +147,6 @@ function AddSheet({
 
   const titles: Record<Exclude<AddTarget, null>, string> = {
     expense: "Nueva categoría de gasto",
-    income: "Nueva categoría de ingreso",
     source: "Nueva fuente de ingreso",
   };
 

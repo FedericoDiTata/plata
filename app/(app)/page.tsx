@@ -232,6 +232,7 @@ export default async function DashboardPage({
               contributions={contributions}
               accounts={accounts}
               currencies={currencies}
+              base={base}
             />
           </div>
         </>
