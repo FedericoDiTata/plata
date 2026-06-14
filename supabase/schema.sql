@@ -266,7 +266,7 @@ begin
 
   -- Monedas iniciales: USD (base) y ARS
   insert into public.currencies (user_id, code, name, symbol, decimals, rate, sort) values
-    (new.id, 'USD', 'Dólar',  'US$', 2, 1,     0),
+    (new.id, 'USD', 'Dólar',  '$',   2, 1,     0),
     (new.id, 'ARS', 'Peso',   '$',   2, 0.001, 1);
 
   -- Categorías de GASTO

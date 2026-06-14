@@ -27,7 +27,13 @@ export async function getCurrencies(): Promise<Currency[]> {
     .from("currencies")
     .select("*")
     .order("sort");
-  return (data ?? []).map((c) => ({ ...c, rate: n(c.rate), decimals: n(c.decimals) }));
+  return (data ?? []).map((c) => ({
+    ...c,
+    rate: n(c.rate),
+    decimals: n(c.decimals),
+    // "US$" es redundante cuando ya mostramos el código "USD" al lado → "$".
+    symbol: c.code === "USD" && c.symbol === "US$" ? "$" : c.symbol,
+  }));
 }
 
 export async function getCategories(): Promise<Category[]> {

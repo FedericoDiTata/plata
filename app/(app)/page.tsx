@@ -291,11 +291,11 @@ function BigTile({
   color: string;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-line bg-bg/40 p-5 text-center">
+    <div className="flex flex-col items-center justify-center overflow-hidden rounded-2xl border border-line bg-bg/40 p-4 text-center">
       <p className="text-xl font-semibold">{label}</p>
       <p className="text-xs text-text-faint">{sub}</p>
       <p
-        className="mt-2 text-3xl font-semibold tnum lg:text-4xl"
+        className="mt-2 w-full whitespace-nowrap text-[clamp(1.1rem,1.9vw,2rem)] font-semibold leading-tight tracking-tight tnum"
         style={{ color: colorVar(color) }}
       >
         {value}
